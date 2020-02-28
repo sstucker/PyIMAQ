@@ -115,10 +115,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <ModuleDefinitionFile>.\PyIMAQ.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
