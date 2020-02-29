@@ -83,6 +83,14 @@ extern "C"
 
 	}
 
+
+	__declspec(dllexport) int getFrameSize()
+	{
+
+		return acqWinWidth * acqWinHeight;
+
+	}
+
 	__declspec(dllexport) int getBufferDim(int* x, int* y, int* bytes)
 	{
 		int error = 0;
@@ -144,28 +152,51 @@ extern "C"
 
 		void* buffer_addr = NULL;
 
-		printf("Examining buffer...\n");
 		error = imgSessionExamineBuffer2(session_id, frame_no, &buffer_number, &buffer_addr);
-		Int8 errbuf[128];
-		printf("%i\n",error);
-		imgShowError(error, errbuf);
-		printf(errbuf); 
-		printf("\n");
-		fflush(stdout);
-		printf("About to memcpy...\n");
-		printf("buffer_addr: %i\n", buffer_addr);
-		printf("dest addr: %i\n", frame_dst);
-		for (int i = 0; i < buffer_size/bytesPerPixel; i+=(buffer_size/bytesPerPixel)/8)
-		{
-			printf("Buffer index %i / %i\n",i,buffer_size/bytesPerPixel);
-			printf("UINT16 value at pixel %i\n", ((UINT16*)buffer_addr)[i]);
-			fflush(stdout);
-		}
+
 		memcpy(frame_dst, buffer_addr, buffer_size);  // Copy buffer to output
 
 		error = imgSessionReleaseBuffer(session_id);  // Release the buffer
 
 		return error;
+
+	}
+
+	__declspec(dllexport) int getDroppedFrames(int* dst)
+	{
+		
+		return imgGetAttribute(session_id, IMG_ATTR_LOST_FRAMES, dst);
+
+	}
+
+	__declspec(dllexport) int getCurrentFrame(UINT16* frame_dst, int* buffer_number_out)
+	{
+		int error = 0;
+
+		void* buffer_addr = NULL;
+
+		error = imgSessionExamineBuffer2(session_id, IMG_CURRENT_BUFFER, &buffer_number, &buffer_addr);
+
+		memcpy(frame_dst, buffer_addr, buffer_size);  // Copy buffer to output
+
+		error = imgSessionReleaseBuffer(session_id);  // Release the buffer
+
+		return error;
+
+	}
+
+	__declspec(dllexport) int copyBuffer(int frame_no, UINT16* frame_dst)
+	{
+
+		return imgSessionCopyBuffer(session_id, frame_no, (uInt8*)frame_dst, 0);
+
+	}
+
+
+	__declspec(dllexport) int copyCurrentBuffer(UINT16* frame_dst)
+	{
+
+		return imgSessionCopyBuffer(session_id, IMG_CURRENT_BUFFER, (uInt8*)frame_dst, 0);
 
 	}
 
@@ -177,5 +208,7 @@ extern "C"
 		printf("\n");
 
 	}
+
+
 
 }

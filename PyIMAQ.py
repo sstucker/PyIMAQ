@@ -10,6 +10,7 @@ import ctypes as c
 import numpy as np
 from numpy.ctypeslib import ndpointer
 import matplotlib.pyplot as plt
+import time
 
 path_to_dll = 'x64/Debug/PyIMAQ.dll'
 img = c.CDLL(path_to_dll)
@@ -36,6 +37,10 @@ img.getBufferSize.restype = c.c_int
 def imgGetBufferSize():
 	return img.getBufferSize()
 
+img.getFrameSize.restype = c.c_int
+def imgGetFrameSize():
+	return img.getFrameSize()
+
 img.close.restype = c.c_int
 def imgClose():
 	return img.close()
@@ -57,34 +62,24 @@ img.getFrame.restype = c.c_int
 def imgGetFrame(frame_number, dst, buffnumber=np.empty(1,dtype=np.int)):
 	return img.getFrame(frame_number, dst, buffnumber)
 
-# Test
+img.getCurrentFrame.argtypes = [uint16_p, int_p]
+img.getCurrentFrame.restype = c.c_int
+def imgGetCurrentFrame(dst, buffnumber=np.empty(1,dtype=np.int)):
+	return img.getCurrentFrame(dst, buffnumber)
 
-print("imgOpen err ")
-imgShowErrorMsg(imgOpen('img0'))
+img.copyBuffer.argtypes = [c.c_int, uint16_p]
+img.copyBuffer.restype = c.c_int
+def imgCopyBuffer(frame_number, dst):
+    return img.copyBuffer(frame_number, dst)
 
-print("imgInitBuffers")
-imgShowErrorMsg(imgInitBuffer(3))
+img.copyCurrentBuffer.argtypes = [uint16_p]
+img.copyCurrentBuffer.restype = c.c_int
+def imgCopyCurrentBuffer(dst):
+    return img.copyCurrentBuffer(dst)
 
-print("imgStartAcq")
-imgShowErrorMsg(imgStartAcq())
-
-print(imgGetBufferSize(),"bytes/frame")
-
-all = []
-
-for i in range(100):
-
-	fbuff = np.empty(imgGetBufferSize(),dtype=(np.uint16))
-
-	print("getFrame")
-	imgShowErrorMsg(imgGetFrame(i,fbuff))
-	print("Image range",min(fbuff),max(fbuff))
-	all.append(fbuff)
-
-print("imgAbortAcq")
-imgShowErrorMsg(imgAbortAcq())
-
-print("imgClose")
-imgShowErrorMsg(imgClose())
-
-
+img.getDroppedFrames.argtypes = [int_p]
+img.getDroppedFrames.restype = c.c_int
+def imgGetDroppedFrames():
+    dropped = np.empty(1,dtype=np.int)
+    img.getDroppedFrames(dropped)
+    return int(dropped[0])
