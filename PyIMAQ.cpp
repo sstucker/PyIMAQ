@@ -91,6 +91,12 @@ extern "C"
 
 	}
 
+	__declspec(dllexport) int sessionSerialWrite(char* msg, uInt32 msg_length_bytes)
+	{
+		uInt32* msg_length_bytes_p = &msg_length_bytes;
+		return imgSessionSerialWrite(session_id, msg, msg_length_bytes_p, 3000);
+	}
+
 	__declspec(dllexport) int getBufferDim(int* x, int* y, int* bytes)
 	{
 		int error = 0;
@@ -141,9 +147,19 @@ extern "C"
 		return imgSessionAcquire(session_id, TRUE, NULL);
 	}
 
+	__declspec(dllexport) int stopAcq()
+	{
+		return imgSessionStopAcquisition(session_id);
+	}
+
 	__declspec(dllexport) int abortAcq()
 	{
 		return imgSessionAbort(session_id, &buffer_number);
+	}
+
+	__declspec(dllexport) int sessionConfigure()
+	{
+		return imgSessionConfigure(session_id, buflist_id);
 	}
 
 	__declspec(dllexport) int getFrame(int frame_no, UINT16* frame_dst, int* buffer_number_out)
@@ -200,13 +216,88 @@ extern "C"
 
 	}
 
+	__declspec(dllexport) int externalLineTrigConfigure(int trigger_line, bool trigger_rising)
+	{
+		
+		UINT32 triggerPolarity;
+		if (trigger_rising)
+		{
+			triggerPolarity = IMG_TRIG_POLAR_ACTIVEH;
+		}
+		else
+		{
+			triggerPolarity = IMG_TRIG_POLAR_ACTIVEL;
+		}
+
+		UINT32 triggerLine;
+		switch (trigger_line)
+		{
+			case 0:
+				triggerLine = IMG_EXT_TRIG0;
+			case 1:
+				triggerLine = IMG_EXT_TRIG1;
+			case 2:
+				triggerLine = IMG_EXT_TRIG2;
+			case 3:
+				triggerLine = IMG_EXT_TRIG3;
+			case 4:
+				triggerLine = IMG_EXT_RTSI0;
+			case 5:
+				triggerLine = IMG_EXT_RTSI1;
+			case 6:
+				triggerLine = IMG_EXT_RTSI2;
+			case 7:
+				triggerLine = IMG_EXT_RTSI3;
+			case 8:
+				triggerLine = IMG_EXT_RTSI4;
+			case 9:
+				triggerLine = IMG_EXT_RTSI5;
+			case 10:
+				triggerLine = IMG_EXT_RTSI6;
+
+		}
+
+		return imgSessionLineTrigSource2(session_id, IMG_SIGNAL_EXTERNAL, triggerLine, triggerPolarity, 0);
+	}
+
+	__declspec(dllexport) int configureROI(UINT32 top, UINT32 left, UINT32 height, UINT32 width)
+	{
+
+		return imgSessionConfigureROI(session_id, top, left, height, width);
+
+	}
+
+
+	__declspec(dllexport) int setAttributeROI(UINT32 top, UINT32 left, UINT32 height, UINT32 width)
+	{
+		int err = imgSetAttribute2(session_id, IMG_ATTR_ACQWINDOW_TOP, top);
+		err = imgSetAttribute2(session_id, IMG_ATTR_ACQWINDOW_LEFT, left);
+		err = imgSetAttribute2(session_id, IMG_ATTR_ACQWINDOW_HEIGHT, height);
+		err = imgSetAttribute2(session_id, IMG_ATTR_ACQWINDOW_WIDTH, width);
+		return err;
+	}
+
+
+	__declspec(dllexport) int setCameraAttributeString(char* attribute, char* value)
+	{
+
+		return imgSetCameraAttributeString(session_id, attribute, value);
+
+	}
+
+	__declspec(dllexport) int setCameraAttributeNumeric(char* attribute, double value)
+	{
+
+		return imgSetCameraAttributeNumeric(session_id, attribute, value);
+
+	}
+
 	__declspec(dllexport) void showError(int error_code)
 	{
 		Int8 error_buffer[256];
 		imgShowError(error_code, error_buffer);
 		printf(error_buffer);
 		printf("\n");
-
 	}
 
 
