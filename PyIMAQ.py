@@ -11,7 +11,7 @@ from numpy.ctypeslib import ndpointer
 import matplotlib.pyplot as plt
 import time
 
-path_to_dll = 'PyIMAQ.dll'
+path_to_dll = 'bin/PyIMAQ.dll'
 
 try:
     img = c.CDLL(path_to_dll)
@@ -126,4 +126,4 @@ try:
         return img.setCameraAttributeNumeric(attribute, value)
     
 except OSError:
-    print('PyIMAQ:', path_to_dll, 'failed to load.')
+    print('PyIMAQ: PyIMAQ DLL load failed.')
