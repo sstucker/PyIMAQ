@@ -1,11 +1,10 @@
 """
-Convenience functions that allow IMAQ device and ring buffer to be accessed from Python.
+Wrapper functions for interface with IMAQ device and a ring buffer
 
-No handles to be dealt with; they live as globals as part of the library. Thus only one
-interface can be used at a time.
+No handles to API objects to be dealt with: are globals as part of the library.
+Thus only one interface can be used at a time.
 
 """
-
 import ctypes as c
 import numpy as np
 from numpy.ctypeslib import ndpointer
@@ -124,6 +123,6 @@ try:
     def imgSetCameraAttributeNumeric(attribute, value):
         attribute = attribute.encode('utf-8') 
         return img.setCameraAttributeNumeric(attribute, value)
-
+    
 except OSError:
-    print(path_to_dll,'failed to load.')
+    print('PyIMAQ:', path_to_dll, 'failed to load.')
