@@ -8,7 +8,6 @@ Thus only one interface can be used at a time.
 import ctypes as c
 import numpy as np
 from numpy.ctypeslib import ndpointer
-import matplotlib.pyplot as plt
 import time
 
 path_to_dll = 'bin/PyIMAQ.dll'
