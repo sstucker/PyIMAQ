@@ -11,7 +11,8 @@ from numpy.ctypeslib import ndpointer
 import matplotlib.pyplot as plt
 import time
 
-path_to_dll = 'C:/Users/OCT/source/repos/PyIMAQ/x64/Debug/PyIMAQ.dll'
+path_to_dll = 'PyIMAQ.dll'
+
 try:
     img = c.CDLL(path_to_dll)
     bool_p = ndpointer(dtype=np.bool,ndim=1,flags='C_CONTIGUOUS')
