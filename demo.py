@@ -7,7 +7,6 @@ from threading import Thread
 import matplotlib.pyplot as plt
 import matplotlib
 import time
-matplotlib.use('TkAgg')
 
 # -----------------------------------------------------------------------------
 

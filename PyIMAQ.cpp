@@ -4,7 +4,8 @@
 #include <mmsystem.h>
 #include <stdio.h>
 #define _NIWIN  
-#include "niimaq.h"  
+#include "niimaq.h"
+#include "fftw3.h"
 
 
 // 
@@ -27,9 +28,34 @@ static uInt32 buffer_number = NULL;
 // User-supplied buffer count
 static int number_of_buffers;
 
+// 32 bit fft plan for FAST-SDOCT
+static fftwf_plan fft_plan;
+static int aline_n;
+
 extern "C"
 {
 	
+	__declspec(dllexport) int interfaceReset()
+	{
+
+		return imgInterfaceReset(interface_id);
+
+	}
+
+	__declspec(dllexport) int rebootCamera()
+	{
+
+		char* cmdbf = "REBOOT";
+		uInt32 size = sizeof(cmdbf);
+
+		int err = 0;
+		err = imgSessionSerialFlush(session_id);
+		err = imgSessionSerialWrite(session_id, cmdbf, &size, 10);
+
+		return err;
+
+	}
+
 	__declspec(dllexport) int open(char* name)
 	{
 		int error = 0;
@@ -44,7 +70,6 @@ extern "C"
 	{
 		int error = 0;
 
-		error = imgSessionAbort(session_id, NULL);
 		error = imgMemUnlock(buflist_id);
 
 		for (int i = 0; i < number_of_buffers; i++)
@@ -91,10 +116,18 @@ extern "C"
 
 	}
 
-	__declspec(dllexport) int sessionSerialWrite(char* msg, uInt32 msg_length_bytes)
+	__declspec(dllexport) int sessionSerialWrite(char* msg)
 	{
-		uInt32* msg_length_bytes_p = &msg_length_bytes;
-		return imgSessionSerialWrite(session_id, msg, msg_length_bytes_p, 3000);
+		uInt32 msg_length = strlen(msg);
+		printf(msg);
+		printf(" size of %i\n", strlen(msg));
+		imgSessionSerialFlush(session_id);
+		return imgSessionSerialWrite(session_id, msg, &msg_length, 3000);
+	}
+
+	__declspec(dllexport) int sessionSerialRead(char* buff, uInt32* length)
+	{
+		return imgSessionSerialRead(session_id, buff, length, 3000);
 	}
 
 	__declspec(dllexport) int getBufferDim(int* x, int* y, int* bytes)
@@ -208,6 +241,37 @@ extern "C"
 
 	}
 
+	__declspec(dllexport) int SDOCT_plan_fft(int aline_size)
+	{
+		aline_n = aline_size;
+		void* dummy = fftwf_alloc_real(aline_size);
+		fft_plan = fftwf_plan_dft_r2c_1d(aline_size, (float*)dummy, (fftwf_complex*)dummy, FFTW_PATIENT);
+		fftwf_free(dummy);
+		return 0;
+
+	}
+
+	__declspec(dllexport) int SDOCT_cleanup()
+	{
+
+		fftwf_destroy_plan(fft_plan);
+		return 0;
+
+	}
+
+	__declspec(dllexport) int SDOCT_copyBuffer_FFT_ONLY(int frame_no, fftwf_complex* frame_dst)
+	{
+
+		imgSessionCopyBuffer(session_id, frame_no, (uInt8*)frame_dst, 0);
+		for (int i = 0; i < 1; i++)
+		{
+			printf("%i", i);
+			printf("%i", i * acqWinWidth);
+			//fftwf_execute_dft_r2c(fft_plan, (float*)frame_dst[i * acqWinWidth], (fftwf_complex*)frame_dst[i*acqWinWidth]);
+		}
+		return 0;
+
+	}
 
 	__declspec(dllexport) int copyCurrentBuffer(UINT16* frame_dst)
 	{

@@ -76,15 +76,19 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>C:\Users\OCT\source\repos\PyIMAQ\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
+    <OutDir>C:\Users\OCT\source\repos\PyIMAQ\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>C:\Users\OCT\source\repos\PyIMAQ\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>C:\Users\OCT\source\repos\PyIMAQ\bin\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -93,10 +97,13 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\Users\OCT\lib\fftw;$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <ModuleDefinitionFile>.\PyIMAQ.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>C:\Users\OCT\lib\fftw;C:\Users\OCT\source\repos\PyIMAQ\res;$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib;libfftw3f-3.lib;libfftw3f-3.libwinmm.lib;imaq.lib;odbc32.lib;odbccp32.lib;libfftw3f-3.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -115,13 +122,14 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;_DEBUG;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\OCT\lib\fftw;$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <ModuleDefinitionFile>.\PyIMAQ.def</ModuleDefinitionFile>
-      <AdditionalLibraryDirectories>$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
-      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib</AdditionalDependencies>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>C:\Users\OCT\lib\fftw;C:\Users\OCT\source\repos\PyIMAQ\res;$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib;libfftw3f-3.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -142,12 +150,15 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\Users\OCT\lib\fftw;$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <ModuleDefinitionFile>.\PyIMAQ.def</ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>C:\Users\OCT\lib\fftw;C:\Users\OCT\source\repos\PyIMAQ\res;$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib;libfftw3f-3.lib;libfftw3f-3.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -168,12 +179,16 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_WINDOWS;NDEBUG;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <AdditionalIncludeDirectories>C:\Users\OCT\lib\fftw;$(NIEXTCCOMPILERSUPP)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
-      <ModuleDefinitionFile>.\PyIMAQ.def</ModuleDefinitionFile>
+      <ModuleDefinitionFile>
+      </ModuleDefinitionFile>
+      <AdditionalLibraryDirectories>C:\Users\OCT\lib\fftw;C:\Users\OCT\source\repos\PyIMAQ\res;$(NIEXTCCOMPILERSUPP)\Lib64\MSVC</AdditionalLibraryDirectories>
+      <AdditionalDependencies>winmm.lib;imaq.lib;odbc32.lib;odbccp32.lib;libfftw3f-3.lib;libfftw3f-3.lib</AdditionalDependencies>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
