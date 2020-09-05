@@ -19,6 +19,7 @@ try:
     int_p = ndpointer(dtype=np.int,ndim=1,flags='C_CONTIGUOUS')
     bool_p = ndpointer(dtype=np.bool,ndim=1,flags='C_CONTIGUOUS')
     uint16_p = ndpointer(dtype=np.uint16,ndim=1,flags='C_CONTIGUOUS')
+    uint32_p = ndpointer(dtype=np.uint32,ndim=1,flags='C_CONTIGUOUS')
     float_p = ndpointer(dtype=np.float32,ndim=1,flags='C_CONTIGUOUS')
     double_p = ndpointer(dtype=np.float64,ndim=1,flags='C_CONTIGUOUS')
     complex64_p = ndpointer(dtype=np.complex64,ndim=1,flags='C_CONTIGUOUS')
@@ -60,17 +61,13 @@ try:
     def imgSessionSerialWrite(msg):
         return img.sessionSerialWrite(c.c_char_p(msg.encode('utf-8')))
 
-    img.sessionSerialRead.argtypes = [c.c_char_p, c.c_uint32]
+    img.sessionSerialRead.argtypes = [c.c_char_p, uint32_p]
     img.sessionSerialRead.restype = c.c_int
     def imgSessionSerialRead(buffer_size=128):
         msgbuff = c.create_string_buffer(buffer_size)
         msglen = np.empty(1, dtype=np.uint32)
-        print(msgbuff, msglen)
         err = img.sessionSerialRead(msgbuff, msglen)
-        if err is 0:
-            return str(msgbuff)[0:int(msglen)]
-        else:
-            return err
+        return str(msgbuff)[0:int(msglen)]
 
     img.close.restype = c.c_int
     def imgClose():
@@ -153,17 +150,45 @@ try:
 
     # FAST SD-OCT FUNCTIONS -------------------------------------------------------
 
-    img.SDOCT_plan_fft.argtypes = [c.c_int]
-    def octPlanFFT(fft_size):
-        return img.SDOCT_plan_fft(fft_size)
+    img.motion_plan.argtypes = [c.c_int, c.c_int, float_p, float_p]
+    img.motion_plan.restype = c.c_int
+    def octMotionPlan(zstart, number_of_bscans, apod_filter_2d=np.ones(32*32, dtype=np.float32), fourier_filter_2d=np.ones(32*32, dtype=np.float32)):
+        return img.motion_plan(zstart, number_of_bscans, apod_filter_2d, fourier_filter_2d)
+    
+    img.SDOCT_motion.argtypes = [c.c_int, float_p]
+    img.SDOCT_motion.restype = c.c_int
+    def octMotion(dt, output):
+        return img.SDOCT_motion(dt, output)
+
+    img.SDOCT_plan.argtypes = [c.c_bool, c.c_bool, float_p, float_p]
+    img.SDOCT_plan.restype = c.c_int
+    def octPlan(lam=None, apod=None):
+        if lam is None:
+            lambda_arr = np.zeros(1, dtype=np.float32)
+            interp_flag = False
+        else:
+            lambda_arr = lam
+            interp_flag = True
+        if apod is None:
+            apod_arr = np.zeros(1, dtype=np.float32)
+            apod_flag = False
+        else:
+            apod_arr = apod
+            apod_flag = True
+        return img.SDOCT_plan(interp_flag, apod_flag, lambda_arr, apod_arr)
 
     def octCleanup():
         return img.SDOCT_cleanup()
 
-    img.SDOCT_copyBuffer_FFT_ONLY.argtypes = [c.c_int, complex64_p]
-    img.SDOCT_copyBuffer_FFT_ONLY.restype = c.c_int
-    def octCopyBufferFFTOnly(frame_number, dst):
-        return img.SDOCT_copyBuffer_FFT_ONLY(frame_number, dst)
+    img.SDOCT_GetBuffer.argtypes = [c.c_int, int_p, complex64_p]
+    img.SDOCT_GetBuffer.restype = c.c_int
+    def octGetBuffer(frame_number, dst):
+        c = np.empty(1, dtype=np.int)
+        err = img.SDOCT_GetBuffer(frame_number, c, dst)
+        if err is 0:
+            return c
+        else:
+            return err
 
 except OSError:
     print('PyIMAQ: failed to open DLL', path_to_dll)
