@@ -182,7 +182,7 @@ try:
 
     img.SDOCT_GetBuffer.argtypes = [c.c_int, int_p, complex64_p]
     img.SDOCT_GetBuffer.restype = c.c_int
-    def octGetBuffer(frame_number, dst):
+    def octCopyBuffer(frame_number, dst):
         c = np.empty(1, dtype=np.int)
         err = img.SDOCT_GetBuffer(frame_number, c, dst)
         if err is 0:
