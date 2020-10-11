@@ -12,9 +12,7 @@
 #include "string.h"
 
 
-// Define everything at global module level
-
-#define MAX_FRAMESTAMP 4096
+#define IMG_STAMP_MAX 4096
 
 // IMAQ handles
 static SESSION_ID session_id;
@@ -30,14 +28,15 @@ static Int32 bytesPerPixel;
 // Size of each buffer/frame
 static unsigned int buffer_size;
 static unsigned int number_of_bscans;
-static int bwidth;  // Equal to acqWinHeight / number_of_bscans
-static uInt32 halfwidth;  // The size of the spatial A-line-- not actually half, but N / 2 + 1
+static unsigned int bwidth;  // Equal to acqWinHeight / number_of_bscans
+static unsigned int halfwidth;
 
 // Master buffer number since acquisiton start
 static uInt32 buffer_number = NULL;
 
 // User-supplied buffer count
 static int number_of_buffers;
+
 
 // Flag that turns linear interpolation of lambda spectrum on and off
 static bool interp_enabled;
@@ -51,8 +50,6 @@ static fftwf_plan fft_plan;
 
 static uint16_t* examined_addr = NULL; // Pointer to the examined IMAQ buffer
 static uInt32* examined_count = NULL;  // The buffer returned by ExamineBuffer
-static uInt32* examined_count_ref = NULL;
-static uInt32* examined_count_dt = NULL;
 
 static float* src_frame;  // Input array for FFT
 static unsigned int* frame_stamp;  // Array of frame numbers
@@ -98,11 +95,6 @@ static float dx;
 static float dx_norm;
 static float dy;
 static float dy_norm;
-static std::complex<float>* maxima;
-static float* avg_corr_x;
-static float* avg_corr_y;
-static float* avg_pos_x;
-static float* avg_pos_y;
 static float maxval;
 static float mag;
 static std::complex<float> tmp;
@@ -110,12 +102,6 @@ static int* fftshift;
 
 static float* aline_dc;
 static unsigned int aline_dc_count;
-
-int mod(int a, int b)
-{
-	int r = a % b;
-	return r < 0 ? r + b : r;
-}
 
 std::complex<float> fftwf_conj(std::complex<float> imag)
 {
@@ -450,9 +436,8 @@ extern "C"
 		}
 
 		src_frame = fftwf_alloc_real(acqWinHeight * acqWinWidth);
-		halfwidth = acqWinWidth / 2 + 1;
 		frame_stamp = new unsigned int[acqWinHeight];
-		fftwf_complex* dummy_out = fftwf_alloc_complex(halfwidth * acqWinHeight);
+		fftwf_complex* dummy_out = fftwf_alloc_complex((int)((acqWinWidth * acqWinHeight) / 2));
 		grabbed = 0;
 
 		// Initialize mean aline matrix
@@ -463,7 +448,7 @@ extern "C"
 		// FFTW "many" plan
 		int n[] = { acqWinWidth };
 		int idist = acqWinWidth;
-		int odist = halfwidth;
+		int odist = (int)(acqWinWidth / 2);
 		int istride = 1;
 		int ostride = 1;
 		int* inembed = n;
@@ -529,17 +514,14 @@ extern "C"
 	{
 
 		examined_count = new uInt32[1];
-		examined_count_ref = new uInt32[1];
-		examined_count_dt = new uInt32[1];
 		ref_stamp = new UINT16[acqWinHeight];
 
 		number_of_bscans = bscans;
-		bwidth = acqWinHeight / number_of_bscans;  // The number of A-scans in each independent B-scan to calculate motion along, as well as the height of the ROI
+		bwidth = acqWinHeight / number_of_bscans;
+		halfwidth = acqWinWidth / 2;
 
 		fourier_filter = new float[bwidth * bwidth];
 		apod_filter = new float[bwidth * bwidth];
-
-		// Copy these because the user may lose track of these arrays after calling "plan"
 		memcpy(fourier_filter, fourier_domain_filter, sizeof(float) * bwidth * bwidth);
 		memcpy(apod_filter, apodization_filter, sizeof(float) * bwidth * bwidth);
 
@@ -547,14 +529,14 @@ extern "C"
 
 		pc_roi = zstart;
 
-		t0 = fftwf_alloc_complex(halfwidth * acqWinHeight);  // A subsection of the array bwidth x bwidth will actually be used for the transform
-		tn = fftwf_alloc_complex(halfwidth * acqWinHeight);
+		t0 = fftwf_alloc_complex((int)((acqWinWidth * acqWinHeight) / 2));  // A subsection of the array bwidth x bwidth will actually be used for the transform
+		tn = fftwf_alloc_complex((int)((acqWinWidth * acqWinHeight) / 2));
 		
 		t0_roi = fftwf_alloc_complex(bwidth * bwidth);
 		tn_roi = fftwf_alloc_complex(bwidth * bwidth);
 		
 		r = fftwf_alloc_complex(bwidth * bwidth);
-		R = fftwf_alloc_complex(bwidth * bwidth);
+		R = new std::complex<float>[bwidth * bwidth];
 
 		printf("Planning FFTWF transforms with complex source %i x %i\n", bwidth, bwidth);
 		pc_t0_fft_plan = fftwf_plan_dft_2d(bwidth, bwidth, t0, t0, FFTW_FORWARD, FFTW_PATIENT);
@@ -575,13 +557,9 @@ extern "C"
 			idx++;
 		}
 
-		// Allocate memory for weighted peak finding
+		// Allocate peak buffer
 		npeak = weighted_avg_npeak;
-		maxima = new std::complex<float>[2 * npeak + 1 * 2 * npeak + 1];
-		avg_corr_x = new float[2 * npeak + 1];
-		avg_corr_y = new float[2 * npeak + 1];
-		avg_pos_x = new float[2 * npeak + 1];
-		avg_pos_y = new float[2 * npeak + 1];
+		peakcorr = new float[2 * npeak + 1];
 
 		return 0;
 	}
@@ -591,113 +569,60 @@ extern "C"
 
 		// Reference frame grab ----------------------------------------------------------------------------------------------------------------------------------
 		examined_addr = NULL;
-		if ((imgSessionExamineBuffer2(session_id, IMG_LAST_BUFFER, examined_count_ref, (void**)&examined_addr) == -1) || (examined_addr == NULL) || (*examined_count == -1))
+		if ((imgSessionExamineBuffer2(session_id, IMG_ATTR_LAST_VALID_BUFFER, examined_count, (void**)&examined_addr) == -1) || (examined_addr == NULL) || (*examined_count == -1))
 		{
 			return -1;
 		}
 
-		// Get frame stamp (only of first A-line)
-		memcpy(ref_stamp, examined_addr, sizeof(UINT16));
+		// Get frame stamp arr
+		for (int i = 0; i < acqWinHeight; i++)
+		{
+			memcpy(ref_stamp + i, examined_addr + acqWinWidth * i, sizeof(UINT16));  // Frame stamp in first index of each line
+			examined_addr[acqWinWidth * i] = 0;  // Zero the stamp value so it doesn't affect the image
+		}
 
 		// Copy array from IMAQ buffer and convert it to float
-		for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-		{
-			src_frame[acqWinWidth * i] = 0; // Zero the stamp value so it doesn't affect the image
-			for (int j = 1; j < acqWinWidth; j++)  // For each element of each A-line
-			{
-				src_frame[acqWinWidth * i + j] = examined_addr[acqWinWidth * i + j];
-			}
-		}
+		std::copy(examined_addr, examined_addr + acqWinWidth * acqWinHeight, src_frame);
 
-
-		// Apodization of reference frame
-		if (apod_enabled)
-		{
-
-			std::memset(aline_dc, 0, acqWinWidth * sizeof(float));
-
-			// Compute mean spectra
-			for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-			{
-				for (int j = 0; j < acqWinWidth; j++)  // For each element of each A-line
-				{
-					aline_dc[j] += src_frame[acqWinWidth * i + j] / acqWinHeight;
-				}
-			}
-
-			for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-			{
-				for (int j = 0; j < acqWinWidth; j++)  // For each element of each A-line
-				{
-					src_frame[acqWinWidth * i + j] = src_frame[acqWinWidth * i + j] - aline_dc[j];  // Subtract mean A-line / DC
-					src_frame[acqWinWidth * i + j] = src_frame[acqWinWidth * i + j] * apod_window[j];  // Multiply by apodization window
-				}
-			}
-		}
-
-		fftwf_execute_dft_r2c(fft_plan, src_frame, t0);
 		imgSessionReleaseBuffer(session_id);
 
-		// printf("Grabbed reference frame t=%i, now grabbing t=%i\n", *examined_count_ref, *examined_count_ref - dt);
-		fflush(stdout);
+		fftwf_execute_dft_r2c(fft_plan, src_frame, t0);
+
+		// printf("Trying to cross-correlate frames %i and %i...\n", *examined_count % number_of_buffers, (*examined_count + dt) % number_of_buffers);
 
 		// Delayed frame grab ----------------------------------------------------------------------------------------------------------------------------------
 		examined_addr = NULL;
-		if ((imgSessionExamineBuffer2(session_id, *examined_count_ref - dt, examined_count_dt, (void**)&examined_addr) == -1) || (examined_addr == NULL) || (*examined_count == -1))
+		if ((imgSessionExamineBuffer2(session_id, *examined_count + dt, examined_count, (void**)&examined_addr) == -1) || (examined_addr == NULL) || (*examined_count == -1))
 		{
 			return -1;
 		}
+
+		// TODO zero the stamps out, only check one  
 
 		// Ensure A-lines are actually with delay dt with respect to reference frame
-		if (mod(ref_stamp[0] - examined_addr[0], MAX_FRAMESTAMP) != acqWinHeight * dt)
+		for (int i = 0; i < acqWinHeight; i++)
 		{
-			printf("Tried to compare the wrong frames: got %i with dt = %i!\n", *examined_count_dt, mod(ref_stamp[0] - examined_addr[0], MAX_FRAMESTAMP));
-			imgSessionReleaseBuffer(session_id);
-			return -1;
+			// printf("Stamp t0 = %i, Stamp tn = %i\n", ref_stamp[i], *(examined_addr + acqWinWidth * i));
+			if (*(examined_addr + acqWinWidth * i) - ref_stamp[i] != acqWinHeight)
+			{
+				// printf("Tried to compare the wrong frames: got %i with dt = %i!\n", *examined_count % number_of_buffers, *(examined_addr + acqWinWidth * i) - ref_stamp[i]);
+				imgSessionReleaseBuffer(session_id);
+				return -1;
+			 }
+			examined_addr[acqWinWidth * i] = 0;
 		}
 
-		// Copy array from IMAQ buffer and convert it to float
-		for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-		{
-			src_frame[acqWinWidth * i] = 0; // Zero the stamp value so it doesn't affect the image
-			for (int j = 1; j < acqWinWidth; j++)  // For each element of each A-line
-			{
-				src_frame[acqWinWidth * i + j] = examined_addr[acqWinWidth * i + j];
-			}
-		}
-
-		// Apodization
-		if (apod_enabled)
-		{
-
-			std::memset(aline_dc, 0, acqWinWidth * sizeof(float));
-
-			// Compute mean spectra
-			for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-			{
-				for (int j = 0; j < acqWinWidth; j++)  // For each element of each A-line
-				{
-					aline_dc[j] += src_frame[acqWinWidth * i + j] / acqWinHeight;
-				}
-			}
-
-			for (int i = 0; i < acqWinHeight; i++)  // For each A-line
-			{
-				for (int j = 0; j < acqWinWidth; j++)  // For each element of each A-line
-				{
-					src_frame[acqWinWidth * i + j] = src_frame[acqWinWidth * i + j] - aline_dc[j];  // Subtract mean A-line / DC
-					src_frame[acqWinWidth * i + j] = src_frame[acqWinWidth * i + j] * apod_window[j];  // Multiply by apodization window
-				}
-			}
-		}
+		std::copy(examined_addr, examined_addr + acqWinWidth * acqWinHeight, src_frame);
 
 		fftwf_execute_dft_r2c(fft_plan, src_frame, tn);
 		imgSessionReleaseBuffer(session_id);
 
 		// Phase correlation  ----------------------------------------------------------------------------------------------------------------------------------
 
-		for (int bscan_idx = 0; bscan_idx < number_of_bscans; bscan_idx++)  // For each B-scan in the frame
+		for (int bscan_idx = 0; bscan_idx < number_of_bscans; bscan_idx++)
 		{
+
+			// printf("Phase correlation of B-scan %i, t0 at %p and tn at %p\n", bscan_idx + 1, t0_roi, tn_roi);
 
 			// Copy processing FFT output to PC buffers and apodize
 
@@ -705,6 +630,7 @@ extern "C"
 			{
 				for (int j = 0; j < bwidth; j++)  // For each col of ROI
 				{
+					//     Destination i, j         B-scan index
 					memcpy(t0_roi + i * bwidth + j, t0 + bscan_idx * bwidth * halfwidth + i * halfwidth + pc_roi + j, sizeof(fftwf_complex));
 					memcpy(tn_roi + i * bwidth + j, tn + bscan_idx * bwidth * halfwidth + i * halfwidth + pc_roi + j, sizeof(fftwf_complex));
 					t0_roi[i * bwidth + j][0] *= apod_filter[i * bwidth + j];
@@ -752,7 +678,14 @@ extern "C"
 				}
 			}
 
-			// TODO apply fourier domain filter. Not sure that this actually improves performance, however
+			// Remove DC from R before FFT
+			// for (int i = 0; i < bwidth; i++)
+			// {
+			// 	memset(t0 + i, 0, sizeof(fftwf_complex));
+			// 	memset(t0 + bwidth * (bwidth - 1) + i, 0, sizeof(fftwf_complex));
+			//	memset(t0 + i * bwidth, 0, sizeof(fftwf_complex));
+			//	memset(t0 + i * bwidth + bwidth, 0, sizeof(fftwf_complex));
+			// }
 
 			// Convert R back to spatial domain
 			fftwf_execute_dft(pc_r_fft_plan, r, R);
@@ -761,8 +694,8 @@ extern "C"
 			maxi = -1;
 			maxj = -1;
 
-			// Naive search for max corr pixel
-
+			// Find peak
+			// TODO weighted peak
 			for (int i = 0; i < bwidth; i++)
 			{
 				for (int j = 0; j < bwidth; j++)
@@ -781,84 +714,31 @@ extern "C"
 				}
 			}
 
-			if (maxval == -1)
-			{
-				return -1;
-			}
-
-			// Weighted average of npeak pixels around max
-			if (npeak > 0)
-			{
-				// Populate matrix of corr values
-
-				int i = 0;
-				for (int di = -npeak; di < npeak + 1; di++)
-				{
-					int j = 0;
-					for (int dj = -npeak; dj < npeak + 1; dj++)
-					{
-						memcpy(maxima + i * 2 * npeak + 1 + j, R + bwidth * mod(maxi + di, bwidth) + mod(maxj + dj, bwidth), sizeof(fftwf_complex));
-						j++;
-					}
-					i++;
-				}
-
-				// Sum along axes
-
-				memset(avg_corr_x, 0, (2 * npeak + 1) * sizeof(float));
-				memset(avg_corr_y, 0, (2 * npeak + 1) * sizeof(float));
-				memset(avg_pos_x, 0, (2 * npeak + 1) * sizeof(float));
-				memset(avg_pos_x, 0, (2 * npeak + 1) * sizeof(float));
-
-				i = 0;
-				for (int di = -npeak; di < npeak + 1; di++)
-				{
-					int j = 0;
-					for (int dj = -npeak; dj < npeak + 1; dj++)
-					{
-						avg_corr_x[i] += std::abs(maxima[2 * npeak + 1 * i + j]);
-						avg_pos_x[i] += maxi + di;
-						avg_corr_y[j] += std::abs(maxima[2 * npeak + 1 * i + j]);
-						avg_pos_y[j] += maxj + dj;
-						j++;
-					}
-					i++;
-				}
-
-				// Find weighted dx, dy
-
-				dx = 0;
-				dy = 0;
-				dx_norm = 0;
-				dy_norm = 0;
-
-				for (int i = 0; i < 2 * npeak + 1; i++)
-				{
-					dx += (avg_corr_x[i] / (2 * npeak + 1)) * (avg_pos_x[i] / (2 * npeak + 1));
-					dy += (avg_corr_y[i] / (2 * npeak + 1)) * (avg_pos_y[i] / (2 * npeak + 1));
-					dx_norm += (avg_corr_x[i] / (2 * npeak + 1));
-					dy_norm += (avg_corr_y[i] / (2 * npeak + 1));
-				}
-
-				dx = dx / dx_norm;
-				dy = dy / dy_norm;
-
-			}
-			else
-			{
-				dx = maxi;
-				dy = maxj;
-			}
-			
 			maxval = maxval / halfwidth;
 
-			memcpy(output + 3 * bscan_idx + 0, &maxval, sizeof(float));
-			memcpy(output + 3 * bscan_idx + 1, &dx, sizeof(float));
-			memcpy(output + 3 * bscan_idx + 2, &dy, sizeof(float));
+			// Weighted average around peak
+
+			for (int i = 0; i < npeak * 2 + 1; i++)
+			{
+				for (int j = 0; j < npeak * 2 + 1; j++)
+				{
+					dx += 
+					dx_norm +=
+					dy +=
+					dy_norm +=
+				}
+			}
+
+			dx = dx / dx_norm;
+			dy = dy / dy_norm;
 
 		}
 
 		return 0;
+
+		memcpy(output + 0, &maxval, sizeof(float));
+		memcpy(output + 1, &dx, sizeof(float));
+		memcpy(output + 2, &dy, sizeof(float));
 
 	}
 

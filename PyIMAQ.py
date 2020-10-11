@@ -120,10 +120,10 @@ try:
         img.getDroppedFrames(dropped)
         return int(dropped[0])
 
-    img.externalLineTrigConfigure.argtypes = [c.c_int, c.c_bool]
-    img.externalLineTrigConfigure.restype = c.c_int
-    def imgExternalLineTrigConfigure(trigger_line, trigger_rising):
-        return img.externalLineTrigConfigure(trigger_line, trigger_rising)
+    img.configureTriggerBufferWithTTL1.argtypes = [c.c_int]
+    img.configureROI.restype = c.c_int
+    def imgConfigTrigBufferWithTTL1(timeout):
+        return img.configureTriggerBufferWithTTL1(timeout)
 
     img.configureROI.argtypes = [c.c_int, c.c_int, c.c_int, c.c_int]
     img.configureROI.restype = c.c_int
@@ -150,10 +150,40 @@ try:
 
     # FAST SD-OCT FUNCTIONS -------------------------------------------------------
 
-    img.motion_plan.argtypes = [c.c_int, c.c_int, float_p, float_p]
+
+    img.SDOCT_get_t0.argtypes = [complex64_p]
+    img.SDOCT_get_t0.restype = c.c_int
+    def octCopyReferenceFrame(dst):
+        return img.SDOCT_get_t0(dst)
+
+    img.SDOCT_get_R.argtypes = [complex64_p]
+    img.SDOCT_get_R.restype = c.c_int
+    def octCopyR(dst):
+        return img.SDOCT_get_R(dst)
+
+    img.SDOCT_get_pc_buffers.argtypes = [complex64_p, complex64_p]
+    img.SDOCT_get_pc_buffers.restype = c.c_int
+    def octCopyPhaseCorrBuffers(t0_dst, tn_dst):
+        return img.SDOCT_get_pc_buffers(t0_dst, tn_dst)
+
+    img.getDC.argtypes = [float_p]
+    img.getDC.restype = c.c_int
+    def octCopyDCSpectrum():
+        buffer = np.zeros(2048, dtype=np.float32)
+        img.getDC(buffer)
+        return buffer
+
+    img.getSourceFFT.argtypes = [c.c_int, float_p]
+    img.getSourceFFT.restype = c.c_int
+    def octCopySpectrum(index):
+        buffer = np.zeros(2048, dtype=np.float32)
+        img.getSourceFFT(index, buffer)
+        return buffer
+
+    img.motion_plan.argtypes = [c.c_int, c.c_int, c.c_int, float_p, float_p]
     img.motion_plan.restype = c.c_int
-    def octMotionPlan(zstart, number_of_bscans, apod_filter_2d=np.ones(32*32, dtype=np.float32), fourier_filter_2d=np.ones(32*32, dtype=np.float32)):
-        return img.motion_plan(zstart, number_of_bscans, apod_filter_2d, fourier_filter_2d)
+    def octMotionPlan(zstart, npeak, number_of_bscans, apod_filter_2d=np.ones(32*32, dtype=np.float32), fourier_filter_2d=np.ones(32*32, dtype=np.float32)):
+        return img.motion_plan(zstart, npeak, number_of_bscans, apod_filter_2d, fourier_filter_2d)
     
     img.SDOCT_motion.argtypes = [c.c_int, float_p]
     img.SDOCT_motion.restype = c.c_int
@@ -167,28 +197,28 @@ try:
             lambda_arr = np.zeros(1, dtype=np.float32)
             interp_flag = False
         else:
-            lambda_arr = lam
+            lambda_arr = lam.astype(np.float32)
             interp_flag = True
         if apod is None:
             apod_arr = np.zeros(1, dtype=np.float32)
             apod_flag = False
         else:
-            apod_arr = apod
+            apod_arr = apod.astype(np.float32)
             apod_flag = True
         return img.SDOCT_plan(interp_flag, apod_flag, lambda_arr, apod_arr)
 
     def octCleanup():
         return img.SDOCT_cleanup()
 
-    img.SDOCT_GetBuffer.argtypes = [c.c_int, int_p, complex64_p]
+    img.SDOCT_GetBuffer.argtypes = [c.c_int, int_p, complex64_p, uint16_p]
     img.SDOCT_GetBuffer.restype = c.c_int
-    def octCopyBuffer(frame_number, dst):
+    def octCopyBuffer(frame_number, dst, frame_stamp):
         c = np.empty(1, dtype=np.int)
-        err = img.SDOCT_GetBuffer(frame_number, c, dst)
-        if err is 0:
-            return c
+        err = img.SDOCT_GetBuffer(frame_number, c, dst, frame_stamp)
+        if err is -1:
+            return -1
         else:
-            return err
+            return c
 
 except OSError:
     print('PyIMAQ: failed to open DLL', path_to_dll)
