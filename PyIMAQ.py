@@ -180,15 +180,15 @@ try:
         img.getSourceFFT(index, buffer)
         return buffer
 
-    img.motion_plan.argtypes = [c.c_int, c.c_int, c.c_int, float_p, float_p]
+    img.motion_plan.argtypes = [c.c_int, c.c_int, c.c_int, c.c_int, float_p, float_p]
     img.motion_plan.restype = c.c_int
-    def octMotionPlan(zstart, npeak, number_of_bscans, apod_filter_2d=np.ones(32*32, dtype=np.float32), fourier_filter_2d=np.ones(32*32, dtype=np.float32)):
-        return img.motion_plan(zstart, npeak, number_of_bscans, apod_filter_2d, fourier_filter_2d)
+    def octMotionPlan(zstart, npeak, number_of_bscans, repeat=1, apod_filter_2d=np.ones(32*32, dtype=np.float32), fourier_filter_2d=np.ones(32*32, dtype=np.float32)):
+        return img.motion_plan(zstart, npeak, repeat, number_of_bscans, apod_filter_2d, fourier_filter_2d)
     
-    img.SDOCT_motion.argtypes = [c.c_int, float_p]
+    img.SDOCT_motion.argtypes = [c.c_int, int_p, float_p]
     img.SDOCT_motion.restype = c.c_int
-    def octMotion(dt, output):
-        return img.SDOCT_motion(dt, output)
+    def octMotion(n, dt, output):
+        return img.SDOCT_motion(n, dt, output)
 
     img.SDOCT_plan.argtypes = [c.c_bool, c.c_bool, float_p, float_p]
     img.SDOCT_plan.restype = c.c_int
