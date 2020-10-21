@@ -887,7 +887,7 @@ extern "C"
 
 	}
 
-	__declspec(dllexport) int SDOCT_GetBuffer(int frame_no, uInt32* count, fftwf_complex* dst_frame, UINT16* stamp)
+	__declspec(dllexport) int SDOCT_GetBuffer(int frame_no, uInt32* count, fftwf_complex* dst_frame)
 	{
 		// Grab IMAQ buffer
 		examined_addr = NULL;
@@ -898,14 +898,6 @@ extern "C"
 		if (*count == -1)
 		{ 
 			return -1;
-		}
-
-		// Copy frame stamp array
-		for (int i = 0; i < acqWinHeight; i++)
-		{
-			// printf("A-line %i, %i stamped %i\n", *count, i, examined_addr[i * acqWinWidth]);
-			memcpy(stamp + i, examined_addr + acqWinWidth * i, sizeof(UINT16));  // Frame stamp in first index of each line
-			*(examined_addr + acqWinWidth * i) = 0;
 		}
 
 		if (interp_enabled)
